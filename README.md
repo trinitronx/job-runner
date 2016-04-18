@@ -64,6 +64,63 @@ spec:
   * Set `KUBERNETES_MASTER` to your Kubernetes cluster url example `http://127.0.0.1:8080`
   * compose2kube binary has been built from - https://github.com/sstarcher/compose2kube
   * IGNORE_OVERRUN - if this variable is false if a job is running and a new job is launched of the same name this will alert to the  alerter
+* Kubernetes-Native
+  * Set `RUNNER` to `kubernetes-native` when running `job-runner` container
+  * Set `KUBERNETES_MASTER` to your Kubernetes cluster url example `http://127.0.0.1:8080`
+  * `compose2kube` is not used in this mode, just put Kubernetes native Job `.yaml` definitions in `k8s-jobs/` directory, then manage your own job YAML by
+    * Add `jobname.yaml` files added under a `k8s-jobs` directory
+    * Add crontab files under `cron`
+      1. Create a `Dockerfile`
+        ```
+        FROM trinitronx/job-runner:latest
+        ```
+      2. Create a folder called `k8s-jobs`
+      3. Create a job file in Kubernetes native [Job][k8s-job] syntax
+        ```
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: pi
+        spec:
+          template:
+            metadata:
+              name: pi
+            spec:
+              containers:
+              - name: pi
+                image: perl
+                command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+              restartPolicy: Never
+        ```
+      4. `docker build --pull -t your-dockerhub-username/jobs .`
+      5. `docker push your-dockerhub-username/jobs`
+      6. Create pod `.yaml` for Kubernetes, set `RUNNER` to `kubernetes-native`
+        ```
+        apiVersion: v1
+        kind: ReplicationController
+        metadata:
+          name: job-runner
+        spec:
+          replicas: 1
+          selector:
+            name: job-runner
+          template:
+            metadata:
+              labels:
+                name: job-runner
+            spec:
+              containers:
+              - name: job-runner
+                image: sstarcher/job-runner:latest
+                env:
+                - name: RUNNER
+                  value: kubernetes-native
+                - name: KUBERNETES_MASTER
+                  value: http://kubernetes:8080
+        ```
+      6. Run pod under kubernetes: `kubectl apply -f path/to/jobs.yaml`
+  * IGNORE_OVERRUN - if this variable is false if a job is running and a new job is launched of the same name this will alert to the  alerter
+
 
 ### Lockers
 * Consul
@@ -107,3 +164,5 @@ Example:
 ```
 4. docker build --pull -t jobs .
 5. docker run jobs
+
+[k8s-job]: http://kubernetes.io/docs/user-guide/jobs/
