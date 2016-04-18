@@ -47,7 +47,10 @@ RUN curl -SL -o /app/lockers/cronsul -z /app/lockers/cronsul https://raw.githubu
 RUN mkdir /app/compose
 
 
-ONBUILD ADD jobs jobs
+ONBUILD ADD jobs /app/jobs
+ONBUILD ADD k8s-jobs /app/k8s-jobs
+ONBUILD ADD cron /app/cron
+ONBUILD ADD default /app/default
 ONBUILD RUN ./processor/python.py /app/jobs &&\
     cp /app/cron/* /etc/cron.d/ &&\
     cp /app/default/* /etc/default/
