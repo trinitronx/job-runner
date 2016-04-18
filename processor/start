@@ -9,7 +9,7 @@ if [ -d "$RUNTIME_CRONS" ]; then
     
 fi
 
-test "$RUNNER" == "kubernetes" && /app/files/verify_kubectl || true
+[[ "$RUNNER" =~ "kubernetes" ]] && /app/files/verify_kubectl || true
 
 env | grep -v 'affinity:container' > /etc/default/runner
 

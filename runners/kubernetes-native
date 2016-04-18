@@ -1,0 +1,60 @@
+#!/bin/bash
+# Set KUBERNETES_MASTER to the URL of your cluster example http://kubemaster:8080
+export KUBERNETES_MASTER
+NODE_SELECTOR=${NODE_SELECTOR:=""}
+PULL_POLICY=${PULL_POLICY:=""}
+
+. /app/processor/reap
+if [[ "$EXIT_CODE" -eq 98 ]]; then
+  echo 'Container creation error'
+  return
+else
+  unset EXIT_CODE
+fi
+
+
+if [[ -z $(kubectl get jobs --selector=service=${JOB} 2> /dev/null ) ]]; then
+  OUTPUT=$(kubectl create -f k8s-jobs/${JOB}.yaml); RESULT=$?
+
+  if [ $RESULT -ne 0 ]; then
+    EXIT_CODE=101
+  fi
+else
+  if [ "$IGNORE_OVERRUN" = true ] ; then
+    echo "[${JOB}] - IGNORING OVERRUN - will not alert"
+    EXIT_CODE=0
+    if [[ "$FOLLOW" == *"true"* ]] ; then
+      POD_NAME=$(kubectl get pods --selector=service=$JOB -o=jsonpath='{.items[*].metadata.name}')
+      kubectl logs -f $POD_NAME
+    fi
+  else
+    EXIT_CODE=100
+  fi
+  return
+fi
+
+#Ensure the pod is actually registered. Avoids a possible race condition
+until kubectl get jobs --selector=service=${JOB} &> /dev/null
+do
+  sleep 0.1
+done
+
+
+if [[ "$FOLLOW" != *"true"* ]] ; then
+  OUTPUT="Running"
+  EXIT_CODE=0
+else
+  STATUS='Pending'
+  while [ "$STATUS" == "Pending" ]
+  do
+    . /app/processor/reap
+  done
+
+  POD_NAME=$(kubectl get pods --selector=service=$JOB -o=jsonpath='{.items[*].metadata.name}')
+  kubectl logs -f $POD_NAME &
+
+  while [ -z "$EXIT_CODE" ]
+  do
+    . /app/processor/reap
+  done
+fi
