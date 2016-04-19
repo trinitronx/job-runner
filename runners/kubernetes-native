@@ -14,7 +14,7 @@ fi
 
 
 if [[ -z $(kubectl get jobs --selector=service=${JOB} 2> /dev/null ) ]]; then
-  OUTPUT=$(kubectl create -f k8s-jobs/${JOB}.yaml); RESULT=$?
+  OUTPUT=$(kubectl create -f /app/k8s-jobs/${JOB}.yaml); RESULT=$?
 
   if [ $RESULT -ne 0 ]; then
     EXIT_CODE=101
