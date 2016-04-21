@@ -4,6 +4,11 @@ export KUBERNETES_MASTER
 NODE_SELECTOR=${NODE_SELECTOR:=""}
 PULL_POLICY=${PULL_POLICY:=""}
 
+
+if [[ "$KUBERNETES_MASTER" == *"https"* || "$KUBERNETES_MASTER" == *"443"* ]]; then
+  KUBECTL_FLAGS="--token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt ${KUBECTL_FLAGS:-}"
+fi
+
 . /app/processor/reap
 if [[ "$EXIT_CODE" -eq 98 ]]; then
   echo 'Container creation error'
@@ -13,8 +18,8 @@ else
 fi
 
 
-if [[ -z $(kubectl get jobs --selector=service=${JOB} 2> /dev/null ) ]]; then
-  OUTPUT=$(kubectl create -f /app/k8s-jobs/${JOB}.yaml); RESULT=$?
+if [[ -z $(kubectl ${KUBECTL_FLAGS:-} get jobs --selector=service=${JOB} 2> /dev/null ) ]]; then
+  OUTPUT=$(kubectl ${KUBECTL_FLAGS:-} create -f /app/k8s-jobs/${JOB}.yaml); RESULT=$?
 
   if [ $RESULT -ne 0 ]; then
     EXIT_CODE=101
@@ -24,8 +29,8 @@ else
     echo "[${JOB}] - IGNORING OVERRUN - will not alert"
     EXIT_CODE=0
     if [[ "$FOLLOW" == *"true"* ]] ; then
-      POD_NAME=$(kubectl get pods --selector=service=$JOB -o=jsonpath='{.items[*].metadata.name}')
-      kubectl logs -f $POD_NAME
+      POD_NAME=$(kubectl ${KUBECTL_FLAGS:-} get pods --selector=service=$JOB -o=jsonpath='{.items[*].metadata.name}')
+      kubectl ${KUBECTL_FLAGS:-} logs -f $POD_NAME
     fi
   else
     EXIT_CODE=100
@@ -34,7 +39,7 @@ else
 fi
 
 #Ensure the pod is actually registered. Avoids a possible race condition
-until kubectl get jobs --selector=service=${JOB} &> /dev/null
+until kubectl ${KUBECTL_FLAGS:-} get jobs --selector=service=${JOB} &> /dev/null
 do
   sleep 0.1
 done
@@ -50,8 +55,8 @@ else
     . /app/processor/reap
   done
 
-  POD_NAME=$(kubectl get pods --selector=service=$JOB -o=jsonpath='{.items[*].metadata.name}')
-  kubectl logs -f $POD_NAME &
+  POD_NAME=$(kubectl ${KUBECTL_FLAGS:-} get pods --selector=service=$JOB -o=jsonpath='{.items[*].metadata.name}')
+  kubectl ${KUBECTL_FLAGS:-} logs -f $POD_NAME &
 
   while [ -z "$EXIT_CODE" ]
   do
