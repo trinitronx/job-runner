@@ -75,12 +75,14 @@ spec:
         FROM trinitronx/job-runner:latest
         ```
       2. Create a folder called `k8s-jobs`
-      3. Create a job file in Kubernetes native [Job][k8s-job] syntax
+      3. Create a job file in Kubernetes native [Job][k8s-job] syntax. Be sure to specify `['metadata']['labels']['service'] = job-name` to ensure the reaper can identify the job & pods.
         ```
         apiVersion: batch/v1
         kind: Job
         metadata:
           name: pi
+          labels:
+            service: pi
         spec:
           template:
             metadata:
