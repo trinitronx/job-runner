@@ -87,6 +87,8 @@ spec:
           template:
             metadata:
               name: pi
+              labels:
+                service: pi
             spec:
               containers:
               - name: pi
